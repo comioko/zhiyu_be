@@ -1,11 +1,4 @@
 -- MySQL 8.0 schema for ZhiGuang authentication service
---
--- 注意：此脚本与 src/main/resources/db/migration/V1__init_schema.sql 内容一致。
--- 生产环境由 Flyway 在 Spring Boot 启动时自动执行迁移（V1__init_schema.sql）。
--- 本文件保留用于本地 docker init / 新人初始化数据库。
--- 修改 schema 时：先改 db/schema.sql，再同步到 V1__init_schema.sql；新增结构用 V2__xxx.sql。
-
-
 
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

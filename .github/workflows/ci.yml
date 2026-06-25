@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_DATABASE: zhiguang
+          TZ: Asia/Shanghai
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -ptest"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      # 用测试 DB 凭证连接 service container
+      SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/zhiguang?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: test
+      SPRING_FLYWAY_ENABLED: "true"
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-maven-
+
+      - name: Wait for MySQL ready
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -ptest --silent && exit 0
+            echo "Waiting for MySQL... ($i)"
+            sleep 2
+          done
+          exit 1
+
+      # 集成测试：应用启动时 Flyway 自动跑 V1__init_schema.sql
+      # 验证：1) Spring 上下文 OK；2) Flyway migration SQL 无语法错；3) 数据库 schema 正确
+      - name: Verify Flyway migration runs against real MySQL
+        run: mvn -B -DskipTests=false test
+
+      - name: Package JAR
+        run: mvn -B -DskipTests package
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhiyu-be-jar
+          path: target/*.jar
+          retention-days: 7
+          if-no-files-found: error
