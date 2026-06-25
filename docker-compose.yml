@@ -37,9 +37,9 @@ services:
     networks:
       - zhiyu-net
 
-  # ===== Redis 7 =====
+  # ===== redis:8.2.3 =====
   redis:
-    image: redis:7-alpine
+    image: redis:8.2.3
     container_name: zhiyu-redis
     restart: unless-stopped
     command: redis-server --appendonly yes
