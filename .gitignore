@@ -5,10 +5,19 @@ target/
 .kotlin
 
 # yml/yaml 配置文件（不上传远程仓库）
-application*.yml
-application*.yaml
+# 排除 application.yml（含敏感配置：数据库密码、邮箱授权码、AI key 等）
+# 但保留 application-prod.yml（生产配置模板，所有值都从环境变量读取，无敏感信息）
+application.yml
+application-dev.yml
+application-test.yml
+application-local.yml
+# 其他 resources 下的 yml（如 banner、自定义配置）
 src/main/resources/**/*.yml
 src/main/resources/**/*.yaml
+# 但 application-prod.yml 仍提交
+!src/main/resources/application-prod.yml
+!application-prod.yml
+!application-prod.yaml
 
 # RSA 密钥（JWT 签名私钥/公钥，不上传远程仓库）
 src/main/resources/keys/

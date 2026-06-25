@@ -1,0 +1,57 @@
+[Unit]
+Description=Zhiyu Backend Service (moehair)
+Documentation=https://github.com/comioko/zhiyu_be
+After=network-online.target mysql.service redis.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=moehair
+Group=moehair
+
+# 部署目录
+WorkingDirectory=/opt/moehair-backend
+
+# 启动命令
+# -Dspring.profiles.active=prod：启用 application-prod.yml
+# -Xms/-Xmx：JVM 堆内存（按 ECS 配置调整）
+# -XX:+UseG1GC：G1 垃圾回收器
+# -Dfile.encoding=UTF-8：默认 UTF-8
+# 启动时把 stdout/stderr 也输出到 journalctl
+ExecStart=/usr/bin/java \
+  -Xms512m -Xmx1024m \
+  -XX:+UseG1GC -XX:MaxGCPauseMillis=200 \
+  -Dfile.encoding=UTF-8 \
+  -Dspring.profiles.active=prod \
+  -jar /opt/moehair-backend/zhiyu-1.0-SNAPSHOT.jar
+
+# 失败时自动重启（最多 5 次，防止频繁重启）
+Restart=on-failure
+RestartSec=10
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# 环境变量注入（敏感字段从 /etc/moehair/backend.env 读）
+EnvironmentFile=/etc/moehair/backend.env
+# 额外兜底
+Environment=SPRING_PROFILES_ACTIVE=prod
+Environment=JAVA_TOOL_OPTIONS=-Dfile.encoding=UTF-8
+
+# 日志输出到 journald + 文件
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=moehair-backend
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/log/moehair-backend /opt/moehair-backend/keys
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target
