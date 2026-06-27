@@ -21,7 +21,9 @@ src/main/resources/**/*.yaml
 
 # RSA 密钥（JWT 签名私钥/公钥，不上传远程仓库）
 src/main/resources/keys/
-**/keys/
+**/keys/*
+# 例外：保留 keys/.gitkeep 占位（让 docker compose 启动时目录存在）
+!**/keys/.gitkeep
 *.pem
 
 # Docker Compose 环境变量（含真实密钥）
@@ -30,6 +32,8 @@ src/main/resources/keys/
 .env.*.local
 
 # Docker 部署数据卷
+# secrets/ 整个目录不进 git（包含 RSA 私钥）
+# 但 keys/.gitkeep 由上方的 !**/keys/.gitkeep 规则保留
 secrets/
 
 ### IntelliJ IDEA ###

@@ -4,7 +4,195 @@
 #   docker compose logs -f backend   # 查看后端日志
 #   docker compose down              # 停止所有服务
 #   docker compose down -v           # 停止并清理数据卷
+## 知域后端 - Docker Compose 部署
+## 用法：
+##   docker compose up -d            # 启动所有服务
+##   docker compose logs -f backend   # 查看后端日志
+##   docker compose down              # 停止所有服务
+##   docker compose down -v           # 停止并清理数据卷
+##
+## 生产部署建议：把 MySQL/Redis/ES 换成云托管服务（阿里云 RDS/Redis/ES），
+## 注释掉对应 service，让 backend 单独跑。
+## 修改 backend 环境变量连接云服务即可。
 #
+#services:
+#  # ===== MySQL 8 =====
+#  mysql:
+#    image: mysql:8
+#    container_name: zhiyu-mysql
+#    restart: unless-stopped
+#    environment:
+#      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-1234567890}
+#      MYSQL_DATABASE: ${MYSQL_DATABASE:-zhiguang}
+#      TZ: Asia/Shanghai
+#    command:
+#      - --character-set-server=utf8mb4
+#      - --collation-server=utf8mb4_unicode_ci
+#      - --default-authentication-plugin=mysql_native_password
+#    ports:
+#      - "${MYSQL_PORT:-3306}:3306"
+#    volumes:
+#      - mysql_data:/var/lib/mysql
+#      # 首次启动时自动导入 schema（容器会自动跳过已存在的库）
+#      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+#    healthcheck:
+#      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-1234567890}"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 10
+#    networks:
+#      - zhiyu-net
+#
+#  # ===== redis:8.2.3 =====
+#  redis:
+#    image: redis:8.2.3
+#    container_name: zhiyu-redis
+#    restart: unless-stopped
+#    command: redis-server --appendonly yes
+#    ports:
+#      - "${REDIS_PORT:-6379}:6379"
+#    volumes:
+#      - redis_data:/data
+#    healthcheck:
+#      test: ["CMD", "redis-cli", "ping"]
+#      interval: 10s
+#      timeout: 3s
+#      retries: 5
+#    networks:
+#      - zhiyu-net
+#
+#  # ===== Kafka 3（KRaft 模式，单节点） =====
+#  kafka:
+#    image: apache/kafka:3.7.0
+#    container_name: zhiyu-kafka
+#    restart: unless-stopped
+#    environment:
+#      KAFKA_NODE_ID: 1
+#      KAFKA_PROCESS_ROLES: broker,controller
+#      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+#      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+#      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+#      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+#      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+#      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+#      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+#      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+#      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+#      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+#      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+#    ports:
+#      - "${KAFKA_PORT:-9092}:9092"
+#    volumes:
+#      - kafka_data:/var/lib/kafka/data
+#    networks:
+#      - zhiyu-net
+#
+#  # ===== Elasticsearch 8 =====
+#  elasticsearch:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:8.18.1
+#    container_name: zhiyu-elasticsearch
+#    restart: unless-stopped
+#    environment:
+#      discovery.type: single-node
+#      xpack.security.enabled: "false"
+#      xpack.security.http.ssl.enabled: "false"
+#      ES_JAVA_OPTS: "-Xms256m -Xmx256m"
+#      bootstrap.memory_lock: "false"
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#    ports:
+#      - "${ES_PORT:-9200}:9200"
+#    volumes:
+#      - es_data:/usr/share/elasticsearch/data
+#    #healthcheck:
+#    #  test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
+#    #  interval: 15s
+#    #  timeout: 5s
+#    #  retries: 10
+#    networks:
+#      - zhiyu-net
+#
+#  # ===== 知域后端 =====
+#  backend:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile
+#    image: zhiyu-be:latest
+#    container_name: zhiyu-backend
+#    restart: unless-stopped
+#    depends_on:
+#      mysql:
+#        condition: service_healthy
+#      redis:
+#        condition: service_healthy
+#      elasticsearch:
+#        condition: service_healthy
+#    environment:
+#      # 覆盖 application-prod.yml 中的 ${ENV_VAR}
+#      SPRING_PROFILES_ACTIVE: prod
+#      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:-zhiguang}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+#      DB_USERNAME: root
+#      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpass123}
+#      REDIS_HOST: redis
+#      REDIS_PORT: 6379
+#      REDIS_PASSWORD: ""
+#      REDIS_DB: 0
+#      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+#      KAFKA_LISTENER_AUTO_STARTUP: "true"
+#      ES_URIS: http://elasticsearch:9200
+#      ES_USERNAME: ""
+#      ES_PASSWORD: ""
+#      # AI keys（务必从 .env 注入，不要写死）
+#      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+#      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+#      QWEN_API_KEY: ${QWEN_API_KEY:-}
+#      QWEN_BASE_URL: ${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode}
+#      # OSS
+#      OSS_ENDPOINT: ${OSS_ENDPOINT:-oss-cn-beijing.aliyuncs.com}
+#      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+#      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+#      OSS_BUCKET: ${OSS_BUCKET:-comioko-zhg}
+#      OSS_PUBLIC_DOMAIN: ${OSS_PUBLIC_DOMAIN:-}
+#      # 邮件
+#      MAIL_HOST: ${MAIL_HOST:-smtp.qq.com}
+#      MAIL_PORT: "587"
+#      MAIL_USERNAME: ${MAIL_USERNAME:-}
+#      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+#      # JWT RSA 密钥（通过 secret volume 挂载，见下方 volumes）
+#      SPRING_FLYWAY_ENABLED: "true"
+#      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+#    ports:
+#      - "${BACKEND_PORT:-8080}:8080"
+#    volumes:
+#      # RSA 密钥从宿主机挂载（首次运行：mkdir -p ./secrets/keys && ssh-keygen -t rsa -b 2048 -f ./secrets/keys/private.pem -N "" && ssh-keygen -t rsa -b 2048 -f ./secrets/keys/public.pem -N ""）
+#      - ./secrets/keys:/opt/moehair-backend/keys:ro
+#    healthcheck:
+#      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health"]
+#      interval: 30s
+#      timeout: 5s
+#      retries: 3
+#      start_period: 60s
+#    networks:
+#      - zhiyu-net
+#
+## ===== 网络 =====
+#networks:
+#  zhiyu-net:
+#    driver: bridge
+#    name: zhiyu-net
+#
+## ===== 数据卷 =====
+#volumes:
+#  mysql_data:
+#    name: zhiyu_mysql_data
+#  redis_data:
+#    name: zhiyu_redis_data
+#  kafka_data:
+#    name: zhiyu_kafka_data
+#  es_data:
+#    name: zhiyu_es_data
 # 生产部署建议：把 MySQL/Redis/ES 换成云托管服务（阿里云 RDS/Redis/ES），
 # 注释掉对应 service，让 backend 单独跑。
 # 修改 backend 环境变量连接云服务即可。
@@ -109,13 +297,16 @@ services:
       - zhiyu-net
 
   # ===== 知域后端 =====
+  # 默认从 GHCR 拉镜像（CI 部署模式）
+  # 本地开发时用 `docker compose build backend` 自动 build 并覆盖 tag
   backend:
+    image: ghcr.io/comioko/zhiyu-be:main
     build:
       context: .
       dockerfile: Dockerfile
-    image: zhiyu-be:latest
     container_name: zhiyu-backend
     restart: unless-stopped
+    pull_policy: always   # 部署时强制拉新镜像
     depends_on:
       mysql:
         condition: service_healthy
