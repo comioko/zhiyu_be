@@ -22,8 +22,8 @@ ENV LANG=zh_CN.UTF-8 \
     JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Dfile.encoding=UTF-8" \
     SPRING_PROFILES_ACTIVE=prod
 
-# 用非 root 用户运行（安全）
-RUN groupadd -r moehair && useradd -r -g moehair -d /opt/moehair-backend -s /bin/false moehair
+# 用非 root 用户运行（安全）；显式指定 UID=1000 与宿主挂载密钥时一致
+RUN groupadd -r -g 1000 moehair && useradd -r -u 1000 -g 1000 -d /opt/moehair-backend -s /bin/false moehair
 
 WORKDIR /opt/moehair-backend
 
