@@ -10,6 +10,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -63,6 +64,25 @@ public class GlobalExceptionHandler {
         body.put("code", ErrorCode.BAD_REQUEST.getCode());
         body.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    /**
+     * 静态资源 / 路由都不存在：HTTP 404。
+     *
+     * 之前 @ExceptionHandler(Exception.class) 把所有未捕获异常都转成 500，
+     * 导致 controller 未注册（或路径写错）时返回 500 而不是标准的 404。
+     * 这里优先捕获 NoResourceFoundException，让 Spring 的 ResourceHttpRequestHandler
+     * 正常工作。
+     *
+     * @param ex 资源未找到异常。
+     * @return 响应体：code/message（404 Not Found）。
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNoResource(NoResourceFoundException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("code", "NOT_FOUND");
+        body.put("message", "资源不存在或功能未启用");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
     }
 
     /**
