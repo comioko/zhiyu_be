@@ -89,9 +89,15 @@ spring:
       auto-startup: ${KAFKA_LISTENER_AUTO_STARTUP:false}
 
   # ===== Spring AI（DeepSeek + 通义千问 Embedding） =====
+  # 必须配置 DEEPSEEK_API_KEY + QWEN_API_KEY，否则 AI 自动装配失败
+  # 申请地址：
+  #   DeepSeek: https://platform.deepseek.com/api_keys
+  #   通义千问: https://dashscope.console.aliyun.com/apiKey
+  # 注意：prod profile 启动必须注入两个 key；noai profile 启动会彻底禁用 AI 模块
+
   ai:
     deepseek:
-      api-key: ${DEEPSEEK_API_KEY}
+      api-key: ${DEEPSEEK_API_KEY:}
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
       chat:
         options:
@@ -99,7 +105,8 @@ spring:
           temperature: 0.8
     openai:
       base-url: ${QWEN_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
-      api-key: ${QWEN_API_KEY}
+      api-key: ${QWEN_API_KEY:}
+      embedding:
       embedding:
         options:
           model: text-embedding-v4

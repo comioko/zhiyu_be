@@ -20,6 +20,7 @@ import com.comioko.cache.hotkey.HotKeyDetector;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,8 @@ public class KnowPostServiceImpl implements KnowPostService {
     private static final Logger log = LoggerFactory.getLogger(KnowPostServiceImpl.class);
     private static final int DETAIL_LAYOUT_VER = 1;
     private final ConcurrentHashMap<String, Object> singleFlight = new ConcurrentHashMap<>();
-    private final RagIndexService ragIndexService;
+    /** RAG 索引服务（AI 关闭时为 null，需 null-check） */
+    private RagIndexService ragIndexService;
 
     // 手动编写构造器，Spring的@Qualifier直接标注在参数上（核心）
     public KnowPostServiceImpl(
@@ -63,7 +65,7 @@ public class KnowPostServiceImpl implements KnowPostService {
             StringRedisTemplate redis,
             @Qualifier("knowPostDetailCache") Cache<String, KnowPostDetailResponse> knowPostDetailCache,
             HotKeyDetector hotKey,
-            RagIndexService ragIndexService
+            @Autowired(required = false) RagIndexService ragIndexService
     ) {
         this.mapper = mapper;
         this.idGen = idGen;

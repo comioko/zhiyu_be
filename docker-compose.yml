@@ -351,8 +351,11 @@ services:
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
-      # RSA 密钥从宿主机挂载（首次运行：mkdir -p ./secrets/keys && ssh-keygen -t rsa -b 2048 -f ./secrets/keys/private.pem -N "" && ssh-keygen -t rsa -b 2048 -f ./secrets/keys/public.pem -N ""）
+      # RSA 密钥从宿主机挂载
+      # 同时挂到 /opt/moehair-backend/keys（新版路径）和 /app/keys（旧镜像路径）
+      # 保证 application-prod.yml 配 file:/opt/.../keys/*.pem 和 file:/app/keys/*.pem 都能读
       - ./secrets/keys:/opt/moehair-backend/keys:ro
+      - ./secrets/keys:/app/keys:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/actuator/health"]
       interval: 30s
