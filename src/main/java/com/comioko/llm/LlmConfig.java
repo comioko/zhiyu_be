@@ -5,20 +5,24 @@ import com.comioko.llm.service.impl.KnowPostDescriptionServiceImpl;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * LLM 配置。
  *
- * 当 spring.ai.openai.api-key 有值时（即 AI 启用），注册 ChatClient 和 KnowPostDescriptionService。
- * 使用 {@code @ConditionalOnProperty} 而非 {@code @ConditionalOnBean}：
- * 1. 属性在 Spring Environment 阶段就解析，条件评估时机更早
- * 2. 避免 bean 之间循环依赖
+ * 使用 {@code @ConditionalOnExpression} 严格判断 spring.ai.openai.api-key 不为空字符串，
+ * 避免 {@code @ConditionalOnProperty} 将 "空字符串属性" 视为"已配置"的语义陷阱。
+ *
+ * 当 key 不为空时：
+ * - ChatClient bean 创建（依赖 deepSeekChatModel bean，由 Spring AI 暴露）
+ * - KnowPostDescriptionService bean 创建（依赖 ChatClient）
+ *
+ * 当 key 为空时：本配置类整体不生效，AI 模块彻底消失，调用相关接口返回 404。
  */
 @Configuration
-@ConditionalOnProperty(name = "spring.ai.openai.api-key", matchIfMissing = false)
+@ConditionalOnExpression("'${spring.ai.openai.api-key:}' != ''")
 public class LlmConfig {
 
     @Bean

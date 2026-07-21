@@ -2,21 +2,22 @@ package com.comioko.knowpost.api;
 
 import com.comioko.llm.rag.RagIndexService;
 import com.comioko.llm.rag.RagQueryService;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * 条件化注册 {@link KnowPostRagController}。
  *
- * 当 spring.ai.openai.api-key 配置时（即 AI 启用），注册 RAG controller；
- * 否则整个 controller 不进入 Spring 上下文，RAG 接口返回 404。
+ * 使用 {@code @ConditionalOnExpression} 严格判断 spring.ai.openai.api-key 不为空字符串，
+ * 与 {@link com.comioko.llm.rag.RagConfig} 对齐：
+ * - key 非空：RAG services + controller 都启用
+ * - key 为空：整个 RAG 模块消失，controller 不注册（接口 404）
  *
- * 使用 {@code @ConditionalOnProperty} 而不是 {@code @ConditionalOnBean}
- * 是为了避免 bean 条件依赖时不可靠。
+ * 用 SpEL 而非 @ConditionalOnProperty 是为了避免 "空字符串属性" 被误判为"已配置"。
  */
 @Configuration
-@ConditionalOnProperty(name = "spring.ai.openai.api-key", matchIfMissing = false)
+@ConditionalOnExpression("'${spring.ai.openai.api-key:}' != ''")
 public class KnowPostRagControllerConfig {
 
     @Bean

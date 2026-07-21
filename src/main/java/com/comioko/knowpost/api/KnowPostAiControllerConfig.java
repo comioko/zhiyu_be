@@ -1,19 +1,22 @@
 package com.comioko.knowpost.api;
 
 import com.comioko.llm.service.KnowPostDescriptionService;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * 条件化注册 {@link KnowPostAiController}。
  *
- * 通过 {@code @ConditionalOnProperty} 在 Spring Environment 阶段评估
- * spring.ai.openai.api-key 是否有值，比 {@code @ConditionalOnBean} 在 bean 工厂
- * 阶段评估更可靠，避免 bean 条件相互依赖导致的"不可见"问题。
+ * 使用 {@code @ConditionalOnExpression} 严格判断 spring.ai.openai.api-key 不为空字符串，
+ * 与 {@link com.comioko.llm.LlmConfig} 对齐：
+ * - key 非空：ChatClient + DescriptionService + Controller 全部启用
+ * - key 为空：AI 模块消失，controller 不注册（接口 404）
+ *
+ * 用 SpEL 而非 @ConditionalOnProperty 是为了避免 "空字符串属性" 被误判为"已配置"。
  */
 @Configuration
-@ConditionalOnProperty(name = "spring.ai.openai.api-key", matchIfMissing = false)
+@ConditionalOnExpression("'${spring.ai.openai.api-key:}' != ''")
 public class KnowPostAiControllerConfig {
 
     @Bean

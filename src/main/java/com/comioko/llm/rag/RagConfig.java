@@ -5,31 +5,30 @@ import com.comioko.config.EsProperties;
 import com.comioko.knowpost.mapper.KnowPostMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
  * RAG 相关服务的条件化注册。
  *
- * 通过 {@link ConditionalOnProperty} 在 ApplicationContext 启动早期判断 spring.ai.openai.api-key
- * 是否配置（占位符解析后的真实值），避免 {@code @ConditionalOnBean} 在 {@code @Configuration}
- * 阶段对动态创建的 bean 不可靠的问题。
+ * 使用 {@link ConditionalOnExpression} SpEL 严格判断 spring.ai.openai.api-key 不为空字符串，
+ * 避免 {@code @ConditionalOnProperty} 将 "空字符串属性" 视为 "已配置" 的语义陷阱。
  *
- * ai-qa profile 启用时（key 已配置），本配置类生效，RagIndexService / RagQueryService 注册；
- * ai-qa profile 关闭时（application-prod-noai.yml 排除 spring ai autoconfigure + key 为空），
- * 本配置类不生效，整个 RAG 模块消失。
+ * 当 key 为空或缺失时，整个配置类不生效——与 Spring AI autoconfigure 行为对齐
+ * （key 为空时 OpenAiEmbeddingAutoConfiguration 会抛 IllegalArgumentException）。
+ *
+ * 对应 prod 模式必须注入 DEEPSEEK_API_KEY + QWEN_API_KEY；noai profile 启动
+ * （application-prod-noai.yml 排除 spring ai autoconfigure）时也安全。
  */
 @Configuration
-@ConditionalOnProperty(name = "spring.ai.openai.api-key", matchIfMissing = false)
+@ConditionalOnExpression("'${spring.ai.openai.api-key:}' != ''")
 public class RagConfig {
 
     /**
-     * 注册索引服务（依赖 VectorStore，Spring AI 自动装配保证其存在）。
+     * 注册索引服务。依赖 VectorStore / KnowPostMapper / ElasticsearchClient / EsProperties。
      */
     @Bean
-    @ConditionalOnBean(VectorStore.class)
     public RagIndexService ragIndexService(VectorStore vectorStore,
                                           KnowPostMapper knowPostMapper,
                                           ElasticsearchClient es,
@@ -38,10 +37,9 @@ public class RagConfig {
     }
 
     /**
-     * 注册查询服务（依赖 VectorStore + ChatClient）。
+     * 注册查询服务。依赖 VectorStore + ChatClient + RagIndexService。
      */
     @Bean
-    @ConditionalOnBean({VectorStore.class, ChatClient.class})
     public RagQueryService ragQueryService(VectorStore vectorStore,
                                           ChatClient chatClient,
                                           RagIndexService ragIndexService) {

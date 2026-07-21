@@ -107,7 +107,6 @@ spring:
       base-url: ${QWEN_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
       api-key: ${QWEN_API_KEY:}
       embedding:
-      embedding:
         options:
           model: text-embedding-v4
           dimensions: 1536
