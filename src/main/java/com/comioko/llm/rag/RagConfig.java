@@ -8,6 +8,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
  * RAG 相关服务的条件化注册。
@@ -22,6 +23,7 @@ import org.springframework.context.annotation.Configuration;
  * （application-prod-noai.yml 排除 spring ai autoconfigure）时也安全。
  */
 @Configuration
+@Profile("!noai & !prod-noai & !lite")
 @ConditionalOnExpression("'${spring.ai.openai.api-key:}' != ''")
 public class RagConfig {
 

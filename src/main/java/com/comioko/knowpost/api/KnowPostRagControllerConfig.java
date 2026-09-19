@@ -5,6 +5,7 @@ import com.comioko.llm.rag.RagQueryService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
  * 条件化注册 {@link KnowPostRagController}。
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.Configuration;
  * 用 SpEL 而非 @ConditionalOnProperty 是为了避免 "空字符串属性" 被误判为"已配置"。
  */
 @Configuration
+@Profile("!noai & !prod-noai & !lite")
 @ConditionalOnExpression("'${spring.ai.openai.api-key:}' != ''")
 public class KnowPostRagControllerConfig {
 
