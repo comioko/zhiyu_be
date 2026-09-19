@@ -17,6 +17,7 @@ import com.comioko.counter.service.CounterService;
 import com.comioko.storage.config.OssProperties;
 import com.comioko.llm.rag.RagIndexService;
 import com.comioko.cache.hotkey.HotKeyDetector;
+import com.comioko.community.service.UserActivityService;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +54,7 @@ public class KnowPostServiceImpl implements KnowPostService {
     private final ConcurrentHashMap<String, Object> singleFlight = new ConcurrentHashMap<>();
     /** RAG 索引服务（AI 关闭时为 null，需 null-check） */
     private RagIndexService ragIndexService;
+    private final UserActivityService userActivityService;
 
     // 手动编写构造器，Spring的@Qualifier直接标注在参数上（核心）
     public KnowPostServiceImpl(
@@ -65,7 +67,8 @@ public class KnowPostServiceImpl implements KnowPostService {
             StringRedisTemplate redis,
             @Qualifier("knowPostDetailCache") Cache<String, KnowPostDetailResponse> knowPostDetailCache,
             HotKeyDetector hotKey,
-            @Autowired(required = false) RagIndexService ragIndexService
+            @Autowired(required = false) RagIndexService ragIndexService,
+            UserActivityService userActivityService
     ) {
         this.mapper = mapper;
         this.idGen = idGen;
@@ -77,6 +80,7 @@ public class KnowPostServiceImpl implements KnowPostService {
         this.knowPostDetailCache = knowPostDetailCache; // 带@Qualifier的参数赋值
         this.hotKey = hotKey;
         this.ragIndexService = ragIndexService;
+        this.userActivityService = userActivityService;
     }
     /**
      * 创建草稿并返回新 ID。
@@ -289,6 +293,9 @@ public class KnowPostServiceImpl implements KnowPostService {
      */
     @Transactional(readOnly = true)
     public KnowPostDetailResponse getDetail(long id, Long currentUserIdNullable) {
+        if (currentUserIdNullable != null) {
+            try { userActivityService.recordView(currentUserIdNullable, id); } catch (Exception ignored) { }
+        }
         // 1. 构造缓存 Key：knowpost:detail:{id}:v{version}
         String pageKey = "knowpost:detail:" + id + ":v" + DETAIL_LAYOUT_VER;
         
