@@ -247,12 +247,46 @@
     </dependencies>
 
     <build>
+        <!-- target/classes keeps local resources so IDE runs work; secrets are
+             stripped at packaging time by maven-jar-plugin below. -->
+        <resources combine.self="override">
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+            </resource>
+        </resources>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <!-- Also protect incremental builds with stale target/classes resources. -->
+                    <excludes>
+                        <exclude>**/application.yml</exclude>
+                        <exclude>**/application.yaml</exclude>
+                        <exclude>**/application.properties</exclude>
+                        <exclude>**/application-dev.*</exclude>
+                        <exclude>**/application-test.*</exclude>
+                        <exclude>**/application-local.*</exclude>
+                        <exclude>**/keys/**</exclude>
+                        <exclude>**/secrets/**</exclude>
+                        <exclude>**/.env*</exclude>
+                        <exclude>**/*.pem</exclude>
+                        <exclude>**/*.key</exclude>
+                        <exclude>**/*.p12</exclude>
+                        <exclude>**/*.pfx</exclude>
+                        <exclude>**/*.jks</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
                     <mainClass>com.comioko.ZhiYuApplication</mainClass>
+                    <!-- Local spring-boot:run reads developer resources directly;
+                         repackage still excludes credentials from release jars. -->
+                    <addResources>true</addResources>
                 </configuration>
             </plugin>
         </plugins>
