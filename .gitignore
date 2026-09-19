@@ -16,6 +16,9 @@ src/main/resources/**/*.yml
 src/main/resources/**/*.yaml
 # 但 application-prod.yml 仍提交
 !src/main/resources/application-prod.yml
+!src/main/resources/application-noai.yml
+!src/main/resources/application-prod-noai.yml
+!src/main/resources/application-lite.yml
 !application-prod.yml
 !application-prod.yaml
 
