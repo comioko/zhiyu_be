@@ -9,6 +9,10 @@
 server:
   port: ${SERVER_PORT:8080}
   forward-headers-strategy: framework
+  tomcat:
+    threads:
+      max: ${HTTP_MAX_THREADS:200}
+      min-spare: ${HTTP_MIN_SPARE_THREADS:10}
 
 spring:
   application:
@@ -21,8 +25,8 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:20}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
@@ -44,17 +48,17 @@ spring:
       database: ${REDIS_DB:0}
       lettuce:
         pool:
-          max-active: 20
-          max-idle: 10
-          min-idle: 5
+          max-active: ${REDIS_POOL_MAX_ACTIVE:20}
+          max-idle: ${REDIS_POOL_MAX_IDLE:10}
+          min-idle: ${REDIS_POOL_MIN_IDLE:5}
           max-wait: 3000ms
 
   # ===== 邮件（QQ 邮箱 SMTP） =====
   mail:
     host: ${MAIL_HOST:smtp.qq.com}
     port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -120,7 +124,7 @@ spring:
   elasticsearch:
     uris: ${ES_URIS:http://127.0.0.1:9200}
     username: ${ES_USERNAME:elastic}
-    password: ${ES_PASSWORD}
+    password: ${ES_PASSWORD:}
 
 # ===== MyBatis =====
 mybatis:
@@ -143,13 +147,19 @@ oss:
 auth:
   jwt:
     # 私钥/公钥文件路径（用文件方式，避免密钥进 env）
-    private-key: file:/opt/moehair-backend/keys/private.pem
-    public-key: file:/opt/moehair-backend/keys/public.pem
+    private-key: ${JWT_PRIVATE_KEY:file:/opt/moehair-backend/keys/private.pem}
+    public-key: ${JWT_PUBLIC_KEY:file:/opt/moehair-backend/keys/public.pem}
     access-token-ttl: 15m
     refresh-token-ttl: 7d
 
 # ===== Actuator 健康检查 =====
 management:
+  health:
+    elasticsearch:
+      enabled: ${ES_HEALTH_ENABLED:true}
+    mail:
+      # 当前验证码发送器不使用 SMTP；实际接入邮件服务后可启用。
+      enabled: ${MAIL_HEALTH_ENABLED:false}
   endpoints:
     web:
       exposure:
@@ -168,7 +178,8 @@ logging:
     org.springframework.web: INFO
     org.mybatis: WARN
   file:
-    name: /var/log/moehair-backend/app.log
+    # 默认写 stdout，交由 systemd/Docker 收集；需要文件时显式指定可写路径。
+    name: ${BACKEND_LOG_FILE:}
   logback:
     rollingpolicy:
       max-file-size: 100MB
@@ -181,7 +192,7 @@ canal:
   port: ${CANAL_PORT:11111}
   destination: ${CANAL_DESTINATION:example}
   username: ${CANAL_USERNAME:canal}
-  password: ${CANAL_PASSWORD}
-  filter: zhiyu\.outbox
+  password: ${CANAL_PASSWORD:}
+  filter: ${CANAL_FILTER:zhiguang\.outbox}
   batchSize: 1000
   intervalMs: 1000
